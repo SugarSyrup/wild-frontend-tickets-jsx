@@ -47,17 +47,42 @@ interface Ticket {
   toggle(): void;
 }
 
-function TicketList({ ticketList }: { ticketList: Ticket[] }) {
+interface CustomComment {
+  id: number;
+  content: string;
+}
+
+function TicketList({
+  ticketList,
+  commentList,
+  addComment,
+}: {
+  ticketList: Ticket[];
+  commentList: CustomComment[][];
+  addComment: ({ id, content }: { id: number; content: string }) => void;
+}) {
   return (
     <div id="ticket-list">
       {ticketList.map((ticket) => (
-        <TicketItem ticket={ticket} />
+        <TicketItem
+          ticket={ticket}
+          commentList={commentList}
+          addComment={addComment}
+        />
       ))}
     </div>
   );
 }
 
-function TicketItem({ ticket }: { ticket: Ticket }) {
+function TicketItem({
+  ticket,
+  commentList,
+  addComment,
+}: {
+  ticket: Ticket;
+  commentList: CustomComment[][];
+  addComment: ({ id, content }: { id: number; content: string }) => void;
+}) {
   const handleClick = () => {
     ticket.toggle();
   };
@@ -69,7 +94,46 @@ function TicketItem({ ticket }: { ticket: Ticket }) {
       <button className="status" onClick={handleClick}>
         {ticket.status === "open" ? "Open" : "Closed"}
       </button>
+      <CustomComment
+        ticketId={ticket.id}
+        addComment={addComment}
+        commentList={commentList[ticket.id]}
+      />
     </li>
+  );
+}
+
+function CustomComment({
+  ticketId,
+  commentList,
+  addComment,
+}: {
+  ticketId: number;
+  commentList: CustomComment[];
+  addComment: ({ id, content }: { id: number; content: string }) => void;
+}) {
+  function onSubmit(event: Event) {
+    event.preventDefault();
+
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const content = formData.get("content") as string;
+
+    addComment({ id: ticketId, content: content });
+  }
+
+  return (
+    <div id="comment-container">
+      <form onSubmit={onSubmit}>
+        <label>Comment</label>
+        <input type="text" name="content" />
+        <button type="submit">Submit</button>
+      </form>
+      <div id="comment-list">
+        {commentList &&
+          commentList.map((comment) => <span>{comment.content}</span>)}
+      </div>
+    </div>
   );
 }
 
@@ -114,6 +178,8 @@ function render({
   root,
   ticketList,
   addTicket,
+  commentList,
+  addComment,
 }: {
   root: HTMLElement;
   ticketList: Ticket[];
@@ -124,10 +190,16 @@ function render({
     title: string;
     description: string;
   }) => void;
+  commentList: CustomComment[][];
+  addComment: ({ id, content }: { id: number; content: string }) => void;
 }) {
   root.replaceChildren(
     <div>
-      <TicketList ticketList={ticketList} />
+      <TicketList
+        ticketList={ticketList}
+        commentList={commentList}
+        addComment={addComment}
+      />
       <Form addTicket={addTicket} />
     </div>
   );
@@ -137,9 +209,10 @@ const root = document.getElementById("root");
 
 if (root) {
   const ticketList: Ticket[] = [];
+  const commentList: CustomComment[][] = [[]];
 
   const update = () => {
-    render({ root, ticketList, addTicket });
+    render({ root, ticketList, addTicket, commentList, addComment });
   };
 
   function addTicket({
@@ -162,6 +235,19 @@ if (root) {
     };
 
     ticketList.push(ticket);
+    commentList.push([]);
+    update();
+  }
+
+  function addComment({ id, content }: { id: number; content: string }) {
+    const commentid =
+      Math.max(...commentList[id].map((comment) => comment.id), 0) + 1;
+    const comment = {
+      id: commentid,
+      content: content,
+    };
+
+    commentList[id].push(comment);
     update();
   }
 
